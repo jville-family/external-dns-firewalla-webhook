@@ -166,6 +166,7 @@ Configure via `/opt/external-dns-firewalla-webhook/.env`:
 ```bash
 DOMAIN_FILTER=home.local,*.home.local
 SHARED_SECRET=your-secure-shared-secret-here
+LISTEN_ADDRESS=0.0.0.0
 PORT_PROVIDER=8888
 PORT_HEALTH=8080
 DNS_TTL=300

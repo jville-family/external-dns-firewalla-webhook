@@ -77,18 +77,18 @@ healthApp.get('/healthz', (req, res) => {
 // Start servers
 function startServers() {
   // Start provider API server
-  const providerServer = providerApp.listen(config.portProvider, '0.0.0.0', () => {
+  const providerServer = providerApp.listen(config.portProvider, config.listenAddress, () => {
     logger.info('Provider API server started', { 
       port: config.portProvider,
-      address: '0.0.0.0'
+      address: config.listenAddress
     });
   });
   
   // Start health check server
-  const healthServer = healthApp.listen(config.portHealth, '0.0.0.0', () => {
+  const healthServer = healthApp.listen(config.portHealth, config.listenAddress, () => {
     logger.info('Health check server started', { 
       port: config.portHealth,
-      address: '0.0.0.0'
+      address: config.listenAddress
     });
   });
   

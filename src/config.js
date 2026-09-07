@@ -61,6 +61,7 @@ const config = {
   sharedSecret: getRequired('SHARED_SECRET'),
   
   // Optional with defaults
+  listenAddress: getOptional('LISTEN_ADDRESS', '0.0.0.0'),
   portProvider: parseInt(getOptional('PORT_PROVIDER', '8888'), 10),
   portHealth: parseInt(getOptional('PORT_HEALTH', '8080'), 10),
   dnsTTL: parseInt(getOptional('DNS_TTL', '300'), 10),
