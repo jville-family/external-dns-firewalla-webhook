@@ -67,7 +67,7 @@ async function getRecords() {
             }
           }
           
-          if (dnsName && txtTargets.length > 0) {
+          if (dnsName && txtTargets.length > 0 && validator.matchesDomainFilter(dnsName, config.domainFilter)) {
             records.push({
               dnsName: dnsName,
               targets: txtTargets,
@@ -105,7 +105,7 @@ async function getRecords() {
              }
            }
 
-           if (dnsName && targets.length > 0) {
+           if (dnsName && targets.length > 0 && validator.matchesDomainFilter(dnsName, config.domainFilter)) {
              records.push({
                dnsName: dnsName,
                targets: targets,
@@ -132,13 +132,17 @@ async function getRecords() {
  * Write a DNS record to file
  */
 async function writeRecord(endpoint) {
-  const { dnsName, targets, recordType } = endpoint;
-  
-  logger.debug('Writing DNS record', { dnsName, recordType, targetCount: targets.length });
-  
   if (!validator.isValidEndpoint(endpoint)) {
-    throw new Error(`Invalid endpoint: ${dnsName}`);
+    throw new Error(`Invalid endpoint: ${endpoint && endpoint.dnsName}`);
   }
+
+  if (!validator.matchesDomainFilter(endpoint.dnsName, config.domainFilter)) {
+    throw new Error(`Endpoint outside domain filter: ${endpoint.dnsName}`);
+  }
+
+  const { dnsName, targets, recordType } = endpoint;
+
+  logger.debug('Writing DNS record', { dnsName, recordType, targetCount: targets.length });
   
   const filePath = getRecordFilePath(dnsName, recordType);
   
@@ -173,8 +177,16 @@ async function writeRecord(endpoint) {
  * Delete a DNS record file
  */
 async function deleteRecord(endpoint) {
+  if (!validator.isValidRecordIdentity(endpoint)) {
+    throw new Error(`Invalid endpoint identity: ${endpoint && endpoint.dnsName}`);
+  }
+
+  if (!validator.matchesDomainFilter(endpoint.dnsName, config.domainFilter)) {
+    throw new Error(`Endpoint outside domain filter: ${endpoint.dnsName}`);
+  }
+
   const { dnsName, recordType } = endpoint;
-  
+
   logger.debug('Deleting DNS record', { dnsName, recordType });
   
   const filePath = getRecordFilePath(dnsName, recordType);
@@ -208,7 +220,9 @@ async function restartDnsService() {
   }
   
   try {
-    const { stdout, stderr } = await execPromise(config.restartCommand);
+    const { stdout, stderr } = await execPromise(config.restartCommand, {
+      timeout: config.restartTimeoutMs
+    });
     
     if (stdout) {
       logger.debug('Service restart stdout', { stdout: stdout.trim() });
@@ -228,6 +242,18 @@ async function restartDnsService() {
   }
 }
 
+function assertWritable(endpoint) {
+  if (!validator.isValidEndpoint(endpoint) || !validator.matchesDomainFilter(endpoint.dnsName, config.domainFilter)) {
+    throw new Error(`Refusing to write unmanaged or invalid endpoint: ${endpoint && endpoint.dnsName}`);
+  }
+}
+
+function assertDeletable(endpoint) {
+  if (!validator.isValidRecordIdentity(endpoint) || !validator.matchesDomainFilter(endpoint.dnsName, config.domainFilter)) {
+    throw new Error(`Refusing to delete unmanaged or invalid endpoint: ${endpoint && endpoint.dnsName}`);
+  }
+}
+
 /**
  * Apply DNS changes (create, update, delete)
  * This function implements optimistic updates with service restart
@@ -240,6 +266,15 @@ async function applyChanges(changes) {
   const deleteCount = (deleteRecords || []).length;
   
   logger.info('Applying DNS changes', { createCount, updateCount, deleteCount });
+
+  if (updateOld && updateNew && updateOld.length !== updateNew.length) {
+    throw new Error('updateOld and updateNew must have the same length');
+  }
+
+  (deleteRecords || []).forEach(assertDeletable);
+  (updateOld || []).forEach(assertDeletable);
+  (updateNew || []).forEach(assertWritable);
+  (create || []).forEach(assertWritable);
   
   try {
     // Delete records

@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const config = require('../config');
 
+const EXPECTED_ISSUER = 'external-dns-proxy';
+
 /**
  * JWT authentication middleware
  * Validates Bearer token in Authorization header
@@ -28,10 +30,14 @@ function authenticate(req, res, next) {
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
   try {
-    // Verify JWT token with shared secret
-    const decoded = jwt.verify(token, config.sharedSecret);
+    const decoded = jwt.verify(token, config.sharedSecret, {
+      algorithms: ['HS256']
+    });
 
-    // Add decoded token to request for potential future use
+    if (decoded.iss !== EXPECTED_ISSUER || !decoded.exp) {
+      throw new Error('Token missing required claims');
+    }
+
     req.auth = decoded;
 
     logger.debug('Authentication successful', {

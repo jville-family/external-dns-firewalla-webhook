@@ -19,6 +19,12 @@ const FIREWALLA_HEALTH_PORT = process.env.FIREWALLA_HEALTH_PORT || '8080';
 const WEBHOOK_PORT = process.env.WEBHOOK_PORT || '8888';
 const METRICS_PORT = process.env.METRICS_PORT || '8080';
 const SHARED_SECRET = process.env.SHARED_SECRET;
+const PROXY_TIMEOUT_MS = parseInt(process.env.PROXY_TIMEOUT_MS || '35000', 10);
+
+if (isNaN(PROXY_TIMEOUT_MS) || PROXY_TIMEOUT_MS < 1) {
+  console.error('PROXY_TIMEOUT_MS must be a positive number');
+  process.exit(1);
+}
 
 // Validate required configuration
 if (!SHARED_SECRET) {
@@ -35,6 +41,7 @@ console.log(`Firewalla Provider: ${FIREWALLA_PROVIDER_URL}`);
 console.log(`Firewalla Health: ${FIREWALLA_HEALTH_URL}`);
 console.log(`Webhook Port: ${WEBHOOK_PORT}`);
 console.log(`Metrics Port: ${METRICS_PORT}`);
+console.log(`Proxy Timeout: ${PROXY_TIMEOUT_MS}ms`);
 
 /**
  * Generate JWT token for authentication
@@ -46,7 +53,7 @@ function generateAuthToken() {
     exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
   };
 
-  return jwt.sign(payload, SHARED_SECRET);
+  return jwt.sign(payload, SHARED_SECRET, { algorithm: 'HS256' });
 }
 
 /**
@@ -75,6 +82,8 @@ function proxyRequest(clientReq, clientRes, targetUrl) {
   console.log(`[${clientReq.method}] ${clientReq.url} -> ${url.href}`);
 
   const proxyReq = http.request(options, (proxyRes) => {
+    clearTimeout(timeout);
+
     // Echo back the Accept header as Content-Type (per webhook spec)
     // External-DNS sends Accept: application/external.dns.webhook+json;version=1
     // We must respond with the exact same value in Content-Type
@@ -95,13 +104,23 @@ function proxyRequest(clientReq, clientRes, targetUrl) {
     });
   });
 
+  const timeout = setTimeout(() => {
+    const err = new Error(`Firewalla request timed out after ${PROXY_TIMEOUT_MS}ms`);
+    err.code = 'ETIMEDOUT';
+    proxyReq.destroy(err);
+  }, PROXY_TIMEOUT_MS);
+
   proxyReq.on('error', (err) => {
+    clearTimeout(timeout);
     console.error(`Proxy error for ${clientReq.url}:`, err.message);
     if (!clientRes.headersSent) {
-      clientRes.writeHead(502, { 'Content-Type': 'application/json' });
+      const timedOut = err.code === 'ETIMEDOUT';
+      clientRes.writeHead(timedOut ? 504 : 502, { 'Content-Type': 'application/json' });
       clientRes.end(JSON.stringify({
-        error: 'Bad Gateway',
-        message: `Failed to connect to Firewalla: ${err.message}`
+        error: timedOut ? 'Gateway Timeout' : 'Bad Gateway',
+        message: timedOut
+          ? `Firewalla request timed out after ${PROXY_TIMEOUT_MS}ms`
+          : `Failed to connect to Firewalla: ${err.message}`
       }));
     }
   });

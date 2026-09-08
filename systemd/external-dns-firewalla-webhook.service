@@ -3,6 +3,8 @@ Description=External-DNS Firewalla Webhook Provider
 Documentation=https://github.com/TheOutdoorProgrammer/external-dns-firewalla-webhook
 After=network.target firerouter_dns.service
 Wants=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -13,6 +15,7 @@ EnvironmentFile=/opt/external-dns-firewalla-webhook/.env
 ExecStart=/home/pi/firewalla/bin/node /opt/external-dns-firewalla-webhook/src/server.js
 Restart=always
 RestartSec=10
+TimeoutStopSec=15
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=external-dns-firewalla-webhook

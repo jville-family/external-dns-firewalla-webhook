@@ -71,7 +71,9 @@ const config = {
   
   // Constants
   contentType: 'application/external.dns.webhook+json;version=1',
-  restartCommand: getOptional('RESTART_COMMAND', 'sudo systemctl restart firerouter_dns')
+  restartCommand: getOptional('RESTART_COMMAND', 'sudo systemctl restart firerouter_dns'),
+  restartTimeoutMs: parseInt(getOptional('RESTART_TIMEOUT_MS', '30000'), 10),
+  workQueueMax: parseInt(getOptional('WORK_QUEUE_MAX', '20'), 10)
 };
 
 // Validate configuration
@@ -89,6 +91,14 @@ if (isNaN(config.portHealth) || config.portHealth < 1 || config.portHealth > 655
 
 if (isNaN(config.dnsTTL) || config.dnsTTL < 0) {
   throw new Error('DNS_TTL must be a non-negative number');
+}
+
+if (isNaN(config.restartTimeoutMs) || config.restartTimeoutMs < 1) {
+  throw new Error('RESTART_TIMEOUT_MS must be a positive number');
+}
+
+if (isNaN(config.workQueueMax) || config.workQueueMax < 1) {
+  throw new Error('WORK_QUEUE_MAX must be a positive number');
 }
 
 const validLogLevels = ['error', 'warn', 'info', 'debug'];

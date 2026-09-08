@@ -1,6 +1,6 @@
 {
   "name": "external-dns-firewalla-webhook",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "External-DNS webhook provider for Firewalla - manages DNS records via dnsmasq (node_modules bundled for Firewalla)",
   "main": "src/server.js",
   "bundledDependencies": [
@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "start": "node src/server.js",
-    "dev": "NODE_ENV=development node src/server.js"
+    "dev": "NODE_ENV=development node src/server.js",
+    "test": "node test/auth.test.js && node test/validator.test.js && node test/adjust-endpoints.test.js && node test/async-handler.test.js && node test/dnsmasq.test.js && node test/records-body.test.js && node test/records-queue.test.js"
   },
   "engines": {
     "node": ">=12.14.0"

@@ -80,9 +80,9 @@ function isValidEndpoint(endpoint) {
     return endpoint.targets.every(isValidIPv4);
   }
   
-  // For TXT records, targets are strings (no validation needed beyond non-empty)
+  // For TXT records, reject values that can break out of dnsmasq quoting
   if (endpoint.recordType === 'TXT') {
-    return endpoint.targets.every(t => typeof t === 'string' && t.length > 0);
+    return endpoint.targets.every(isValidTxtValue);
   }
 
   // For CNAME records, targets must be valid DNS names
@@ -91,6 +91,71 @@ function isValidEndpoint(endpoint) {
   }
 
   return true;
+}
+
+/**
+ * Validate TXT record target.
+ * Quotes, newlines, NUL, and other control characters can break out of
+ * txt-record=name,"value" and inject extra dnsmasq directives.
+ */
+function isValidTxtValue(value) {
+  if (typeof value !== 'string' || value.length === 0) {
+    return false;
+  }
+
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code < 32 || code === 34 || code === 127) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validate dnsName + recordType without requiring targets (used for deletes).
+ */
+function isValidRecordIdentity(endpoint) {
+  if (!endpoint || typeof endpoint !== 'object') {
+    return false;
+  }
+
+  return isValidDnsName(endpoint.dnsName) && isValidRecordType(endpoint.recordType);
+}
+
+/**
+ * Normalize a domain for filter comparison.
+ */
+function normalizeDomain(domain) {
+  return domain.trim().toLowerCase().replace(/\.$/, '');
+}
+
+/**
+ * Check whether a DNS name is allowed by DOMAIN_FILTER.
+ * "home.local" matches the apex and all subdomains.
+ * "*.home.local" matches only subdomains.
+ */
+function matchesDomainFilter(dnsName, filters) {
+  if (!dnsName || typeof dnsName !== 'string' || !Array.isArray(filters) || filters.length === 0) {
+    return false;
+  }
+
+  const name = normalizeDomain(dnsName);
+
+  return filters.some(filter => {
+    if (!filter || typeof filter !== 'string') {
+      return false;
+    }
+
+    const normalizedFilter = normalizeDomain(filter);
+    if (normalizedFilter.startsWith('*.')) {
+      const base = normalizedFilter.slice(2);
+      return base.length > 0 && name.endsWith('.' + base);
+    }
+
+    return name === normalizedFilter || name.endsWith('.' + normalizedFilter);
+  });
 }
 
 /**
@@ -106,5 +171,8 @@ module.exports = {
   isValidIPv4,
   isValidRecordType,
   isValidEndpoint,
+  isValidTxtValue,
+  isValidRecordIdentity,
+  matchesDomainFilter,
   sanitizeDomainForFilename
 };

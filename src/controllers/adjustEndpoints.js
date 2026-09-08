@@ -62,6 +62,13 @@ function adjustEndpoints(req, res) {
        return false;
      }
     
+    if (!validator.matchesDomainFilter(endpoint.dnsName, config.domainFilter)) {
+      logger.debug('Filtering out endpoint outside domain filter', {
+        dnsName: endpoint.dnsName
+      });
+      return false;
+    }
+
     // Validate endpoint structure
     if (!validator.isValidEndpoint(endpoint)) {
       logger.warn('Skipping invalid endpoint', { 

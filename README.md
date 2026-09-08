@@ -63,7 +63,7 @@ openssl rand -hex 32 > /tmp/external-dns-shared-secret
 ````
 #### Install the provider
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TheOutdoorProgrammer/external-dns-firewalla-webhook/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jville-family/external-dns-firewalla-webhook/main/scripts/install.sh | bash
 ```
 
 ### 2. Configure External-DNS (Kubernetes)
@@ -76,7 +76,7 @@ provider:
   name: webhook
   webhook:
     image:
-      repository: ghcr.io/theoutdoorprogrammer/external-dns-firewalla-webhook
+      repository: ghcr.io/jville-family/external-dns-firewalla-webhook
       tag: 1.1.0
     env:
        - name: FIREWALLA_HOST
@@ -174,6 +174,8 @@ DNSMASQ_DIR=/home/pi/.firewalla/config/dnsmasq_local
 LOG_LEVEL=info
 DRY_RUN=false
 RESTART_COMMAND=sudo systemctl restart firerouter_dns
+RESTART_TIMEOUT_MS=30000
+WORK_QUEUE_MAX=20
 ```
 
 ### Webhook Proxy (Kubernetes)
@@ -185,6 +187,7 @@ Environment variables for the sidecar container:
 - `FIREWALLA_HEALTH_PORT`: Health check port on Firewalla (default: 8080)
 - `WEBHOOK_PORT`: Port for webhook proxy to listen on (default: 8888)
 - `METRICS_PORT`: Port for health/metrics endpoints (default: 8080)
+- `PROXY_TIMEOUT_MS`: Outbound timeout to Firewalla in milliseconds (default: 35000)
 - `SHARED_SECRET`: Shared secret for JWT authentication (must match Firewalla provider)
 
 ## Supported Record Types
@@ -269,7 +272,8 @@ api.home.local
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Copy `.env.example` to `.env` and configure
-4. Run in development mode: `npm run dev`
+4. Run tests: `npm test`
+5. Run in development mode: `npm run dev`
 
 ## License
 

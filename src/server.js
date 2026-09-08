@@ -15,6 +15,7 @@ const adjustEndpoints = require('./controllers/adjustEndpoints');
 
 // Middleware
 const authenticate = require('./middleware/auth');
+const asyncHandler = require('./utils/asyncHandler');
 
 // Create Express apps for provider and health endpoints
 const providerApp = express();
@@ -45,7 +46,16 @@ providerApp.use((req, res, next) => {
   next();
 });
 
-// Error handling middleware
+// Provider API endpoints (port 8888)
+// These are the external-dns webhook protocol endpoints
+providerApp.use(authenticate);
+
+providerApp.get('/', asyncHandler(negotiate));
+providerApp.get('/records', asyncHandler(getRecords));
+providerApp.post('/records', asyncHandler(applyChanges));
+providerApp.post('/adjustendpoints', asyncHandler(adjustEndpoints));
+
+// After routes so next(err) from json parsing and handlers is caught
 providerApp.use((err, req, res, next) => {
   logger.error('Unhandled error in request', { 
     error: err.message, 
@@ -58,16 +68,6 @@ providerApp.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-// Provider API endpoints (port 8888)
-// These are the external-dns webhook protocol endpoints
-providerApp.use('/records', authenticate);
-providerApp.use('/adjustendpoints', authenticate);
-
-providerApp.get('/', negotiate);
-providerApp.get('/records', getRecords);
-providerApp.post('/records', applyChanges);
-providerApp.post('/adjustendpoints', adjustEndpoints);
 
 // Health check endpoint (port 8080)
 healthApp.get('/healthz', (req, res) => {

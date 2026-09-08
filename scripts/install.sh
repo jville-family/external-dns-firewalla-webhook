@@ -7,7 +7,7 @@
 #   1. Create config file with your domain filter:
 #      echo "home.local,*.home.local" > /tmp/external-dns-domain-filter
 #   2. Run the installation:
-#      curl -fsSL https://raw.githubusercontent.com/.../install.sh | bash
+#      curl -fsSL https://raw.githubusercontent.com/jville-family/external-dns-firewalla-webhook/main/scripts/install.sh | bash
 #
 set -e
 
@@ -23,7 +23,8 @@ SERVICE_NAME="external-dns-firewalla-webhook"
 SERVICE_FILE="external-dns-firewalla-webhook.service"
 DNSMASQ_DIR="/home/pi/.firewalla/config/dnsmasq_local"
 SUDOERS_FILE="/etc/sudoers.d/external-dns-webhook"
-GITHUB_REPO="https://github.com/TheOutdoorProgrammer/external-dns-firewalla-webhook.git"
+GITHUB_REPO="https://github.com/jville-family/external-dns-firewalla-webhook.git"
+INSTALL_SCRIPT_URL="https://raw.githubusercontent.com/jville-family/external-dns-firewalla-webhook/main/scripts/install.sh"
 CONFIG_FILE="/tmp/external-dns-domain-filter"
 SECRET_FILE="/tmp/external-dns-shared-secret"
 
@@ -48,7 +49,7 @@ if [ ! -f "$CONFIG_FILE" ] || [ ! -f "$SECRET_FILE" ]; then
     echo "  # Or use: echo \"your-secure-random-secret-here\" > $SECRET_FILE"
     echo ""
     echo "Step 3: Run the installer:"
-    echo "  curl -fsSL https://raw.githubusercontent.com/TheOutdoorProgrammer/external-dns-firewalla-webhook/main/scripts/install.sh | bash"
+    echo "  curl -fsSL $INSTALL_SCRIPT_URL | bash"
     echo ""
     echo "For interactive installation:"
     echo "  git clone $GITHUB_REPO"
